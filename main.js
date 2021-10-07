@@ -1,13 +1,28 @@
+"use strict";
+
 const smtpTransport = require("nodemailer-smtp-transport");
 const nodemailer = require("nodemailer");
 const puppeteer = require("puppeteer");
 
 const timeout = 1000 * 60 * 3;
-const url = "https://www.imot.bg/779kqe";
-let lastLinkUrl = null;
+const newUrls = [];
+const criterias = [
+  {
+    description: "General",
+    url: "https://www.imot.bg/779kqe",
+  },
+  {
+    description: "Under 1100 euro/sqm",
+    url: "https://www.imot.bg/77bjz3",
+  },
+];
 
-const getNewAd = async () => {
-  const browser = await puppeteer.launch();
+const getNewAd = async ({ url, description }) => {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox"],
+  });
+
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "domcontentloaded" });
 
@@ -18,16 +33,14 @@ const getNewAd = async () => {
       ),
     ];
 
-    const hasNewBuildings = Boolean(
-      links.find((link) => link.classList.contains("novaSgrada"))
-    );
+    const hasNewBuildings = Boolean(links.find(link => link.classList.contains("novaSgrada")));
 
     let result = null;
 
     if (hasNewBuildings) {
       let hasPassedNewBuildings = false;
 
-      result = links.find((link) => {
+      result = links.find(link => {
         const isNewBuilding = link.classList.contains("novaSgrada");
 
         if (!hasPassedNewBuildings && isNewBuilding) {
@@ -39,9 +52,7 @@ const getNewAd = async () => {
         return false;
       });
     } else {
-      result = links.filter(
-        (link) => !link.classList.contains("novaSgrada")
-      )[0];
+      result = links.filter(link => !link.classList.contains("novaSgrada"))[0];
     }
 
     return {
@@ -54,10 +65,12 @@ const getNewAd = async () => {
 
   await browser.close();
 
-  return ad;
+  return { ad, description };
 };
 
-const sendEmailWith = async ({ link, pic, price, preview }) => {
+const sendEmailWith = async ({ ad, description }) => {
+  const { link, pic, price, preview } = ad;
+
   const transporter = nodemailer.createTransport(
     smtpTransport({
       service: "gmail",
@@ -72,8 +85,8 @@ const sendEmailWith = async ({ link, pic, price, preview }) => {
   const mailOptions = {
     from: "mirka.dimitrov@gmail.com",
     to: "mariyan_dimitrov@yahoo.com",
-    subject: price,
-    text: `${preview}\n${link}\n\n ---------------------------- \n ${pic}`,
+    subject: `${description}: ${price}`,
+    text: `${preview}\n${pic}\n\n ---------------------------- \n ${link}`,
   };
 
   transporter.sendMail(mailOptions);
@@ -82,19 +95,31 @@ const sendEmailWith = async ({ link, pic, price, preview }) => {
 let isInitialRun = true;
 
 const watchForChanges = () => {
-  getNewAd().then((ad) => {
-    const { link } = ad;
+  Promise.all(
+    criterias.map(
+      criteria =>
+        new Promise((resolve, reject) => {
+          getNewAd(criteria)
+            .then(criteriaResult => {
+              const { ad, description } = criteriaResult;
+              const { link } = ad;
 
-    if (link !== lastLinkUrl) {
-      lastLinkUrl = link;
-      !isInitialRun && sendEmailWith(ad);
-    }
+              if (!newUrls.includes(link)) {
+                newUrls.push(link);
+                !isInitialRun && sendEmailWith(criteriaResult);
+              }
 
+              resolve(link);
+            })
+            .catch(reject);
+        })
+    )
+  ).then(() => {
     isInitialRun = false;
 
     setTimeout(() => {
-        watchForChanges();
-    }, timeout)
+      watchForChanges();
+    }, timeout);
   });
 };
 
