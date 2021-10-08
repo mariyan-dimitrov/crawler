@@ -36,6 +36,8 @@ const getNewAds = async criteria => {
 
     let lastNewBuildingIndex = 0;
 
+    console.log("test");
+
     [...links].reverse().find((link, index) => {
       if (link.classList.contains("novaSgrada")) {
         lastNewBuildingIndex = links.length - index;
