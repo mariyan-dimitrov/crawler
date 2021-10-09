@@ -43,7 +43,7 @@ const getNewAds = async criteria => {
       }
 
       return false;
-    }) || 3;
+    });
 
     const getAdData = ad => ({
       url: ad.querySelector("a[href]").href,
@@ -52,37 +52,21 @@ const getNewAds = async criteria => {
       preview: ad.querySelector("tr:nth-child(3) td").textContent.trim(),
     });
 
-    const results = [];
     let hasVipBuildings = false;
     let hasTopBuildings = false;
     let hasFirstRegularBuilding = false;
 
     noNewBuildingsAds = links.slice(lastNewBuildingIndex);
 
-    noNewBuildingsAds.forEach(ad => {
+    return noNewBuildingsAds.map(ad => {
       const isLegitAd = Boolean(ad.querySelector("tbody tr:nth-child(2)"));
 
       if (!isLegitAd) {
         return;
       }
 
-      const imageTag = ad.querySelector("tr:nth-child(2) > td:nth-child(3) img");
-      const isVip = imageTag?.src && imageTag.src.includes("/vip.svg");
-      const isTop = imageTag?.src && imageTag.src.includes("/top.svg");
-
-      if (isVip && !hasVipBuildings) {
-        results.push({ ...getAdData(ad), isVip });
-        hasVipBuildings = true;
-      } else if (isTop && !hasTopBuildings) {
-        results.push({ ...getAdData(ad), isTop });
-        hasTopBuildings = true;
-      } else if (!isTop && !isVip && !hasFirstRegularBuilding) {
-        results.push(getAdData(ad));
-        hasFirstRegularBuilding = true;
-      }
+      return getAdData(ad);
     });
-
-    return results;
   });
 
   await browser.close();
@@ -95,14 +79,14 @@ let isInitialRun = true;
 const watchForChanges = () => {
   const criteriaPromises = criterias.map(criteria =>
     getNewAds(criteria).then(({ ads, description }) => {
-      ads.forEach(({ url, preview, price, pic, isVip, isTop }) => {
+      ads.forEach(({ url, preview, price, pic }) => {
         if (!seenUrls.includes(url)) {
           seenUrls.push(url);
 
           !isInitialRun &&
             sendEmail({
               text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
-              subject: `${isVip ? "VIP /" : isTop ? "TOP /" : ""} ${price} / ${description} `,
+              subject: `${price} / ${description}`,
             });
         }
       });
@@ -120,13 +104,9 @@ const watchForChanges = () => {
       }, timeout);
     })
     .catch(error => {
-      console.log("=============================================");
-      console.log(error);
-      console.log("=============================================");
-
       sendEmail({
-        text: `Help me, I'm hurt!!!`,
-        subject: `Droplet failure`,
+        subject: `Stepbro, I'm stuck`,
+        text: error,
       });
     });
 };
