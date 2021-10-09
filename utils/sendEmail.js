@@ -12,12 +12,12 @@ const transporter = nodemailer.createTransport(
   })
 );
 
-module.exports = ({ text = "", subject = "" }) => {
+module.exports = ({ text = "", subject = "", to }) => {
   const mailOptions = {
     from: "mirka.dimitrov@gmail.com",
-    to: "mariyan_dimitrov@yahoo.com",
     subject,
     text,
+    to,
   };
 
   transporter.sendMail(mailOptions);

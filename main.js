@@ -4,21 +4,25 @@ const puppeteer = require("puppeteer");
 
 const sendEmail = require("./utils/sendEmail");
 
+const adminEmail = "mariyan_dimitrov@yahoo.com";
+
 const timeout = 1000 * 60 * 3;
 const seenUrls = [];
 const criterias = [
   {
     description: "General",
     url: "https://www.imot.bg/779kqe",
+    emails: [adminEmail],
   },
   {
     description: "Under 1100 euro/sqm",
     url: "https://www.imot.bg/77bjz3",
+    emails: [adminEmail],
   },
 ];
 
 const getNewAds = async criteria => {
-  const { url, description } = criteria;
+  const { url } = criteria;
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox"],
@@ -27,7 +31,7 @@ const getNewAds = async criteria => {
   const page = await browser.newPage();
   await page.goto(url, { waitUntil: "domcontentloaded" });
 
-  const ads = await page.evaluate(() => {
+  const allAds = await page.evaluate(() => {
     const links = [
       ...document.querySelectorAll(
         "body > div:nth-child(1) > table:nth-child(4) > tbody > tr:nth-child(1) > td:nth-child(1) > table"
@@ -71,22 +75,27 @@ const getNewAds = async criteria => {
 
   await browser.close();
 
-  return { ads, description };
+  const ads = allAds.filter(ad => ad);
+
+  return { ...criteria, ads };
 };
 
 let isInitialRun = true;
 
 const watchForChanges = () => {
   const criteriaPromises = criterias.map(criteria =>
-    getNewAds(criteria).then(({ ads, description }) => {
+    getNewAds(criteria).then(({ ads, description, emails }) => {
       ads.forEach(({ url, preview, price, pic }) => {
         if (!seenUrls.includes(url)) {
           seenUrls.push(url);
 
           !isInitialRun &&
-            sendEmail({
-              text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
-              subject: `${price} / ${description}`,
+            emails.forEach(email => {
+              sendEmail({
+                subject: `${price} / ${description}`,
+                text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
+                to: email,
+              });
             });
         }
       });
@@ -107,10 +116,9 @@ const watchForChanges = () => {
       sendEmail({
         subject: `Stepbro, I'm stuck`,
         text: error,
+        to: adminEmail,
       });
     });
 };
 
 watchForChanges();
-
-console.log("here");
