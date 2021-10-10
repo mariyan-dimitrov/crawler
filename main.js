@@ -56,21 +56,10 @@ const getNewAds = async criteria => {
       preview: ad.querySelector("tr:nth-child(3) td").textContent.trim(),
     });
 
-    let hasVipBuildings = false;
-    let hasTopBuildings = false;
-    let hasFirstRegularBuilding = false;
-
-    noNewBuildingsAds = links.slice(lastNewBuildingIndex);
-
-    return noNewBuildingsAds.map(ad => {
-      const isLegitAd = Boolean(ad.querySelector("tbody tr:nth-child(2)"));
-
-      if (!isLegitAd) {
-        return;
-      }
-
-      return getAdData(ad);
-    });
+    return links
+      .slice(lastNewBuildingIndex)
+      .filter(ad => Boolean(ad.querySelector("tbody tr:nth-child(2)")))
+      .map(getAdData);
   });
 
   await browser.close();
