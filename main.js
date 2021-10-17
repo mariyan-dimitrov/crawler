@@ -139,3 +139,4 @@ const watchForChanges = async () => {
 };
 
 watchForChanges();
+console.log("here");
