@@ -13,21 +13,25 @@ const criterias = [
     description: "General",
     url: "https://www.imot.bg/78lfo3",
     emails: [adminEmail],
+    hasCriteriaExpired: false,
   },
   {
     description: "Under 1100 euro/sqm",
     url: "https://www.imot.bg/78lfq3",
     emails: [adminEmail],
+    hasCriteriaExpired: false,
+  },
+  {
+    description: "General two rooms",
+    url: "https://www.imot.bg/78lfux",
+    emails: [adminEmail],
+    hasCriteriaExpired: false,
   },
   {
     description: "Two rooms Under 1100 euro/sqm",
     url: "https://www.imot.bg/78lfst",
     emails: [adminEmail],
-  },
-  {
-    description: "Two rooms Under 1100 euro/sqm",
-    url: "https://www.imot.bg/78lfux",
-    emails: [adminEmail],
+    hasCriteriaExpired: false,
   },
 ];
 
@@ -85,21 +89,33 @@ const watchForChanges = async () => {
   try {
     const criteriaPromises = criterias.map(
       criteria => () =>
-        getNewAds(criteria).then(({ ads, description, emails }) => {
-          ads.forEach(({ url, preview, price, pic }) => {
-            if (!seenUrls.includes(url)) {
-              seenUrls.push(url);
+        getNewAds(criteria).then(({ ads, description, url, emails, hasCriteriaExpired }) => {
+          if (ads.length) {
+            ads.forEach(({ url, preview, price, pic }) => {
+              if (!seenUrls.includes(url)) {
+                seenUrls.push(url);
 
-              !isInitialRun &&
-                emails.forEach(email => {
-                  sendEmail({
-                    subject: `${price} / ${description}`,
-                    text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
-                    to: email,
+                !isInitialRun &&
+                  emails.forEach(email => {
+                    sendEmail({
+                      subject: `${price} / ${description}`,
+                      text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
+                      to: email,
+                    });
                   });
-                });
-            }
-          });
+              }
+            });
+          } else if (!hasCriteriaExpired) {
+            const criteriaIndex = criterias.findIndex(criteria => criteria.url === url);
+            criterias[criteriaIndex].hasCriteriaExpired = true;
+
+            sendEmail({
+              subject: `Expired "${criteria}"`,
+              text: `Criteria expired: ${url}`,
+              to: adminEmail,
+            });
+          }
+
           return criteria;
         })
     );
@@ -115,7 +131,7 @@ const watchForChanges = async () => {
     }, timeout);
   } catch (error) {
     sendEmail({
-      subject: `Stepbro, I'm stuck`,
+      subject: "Crawler error",
       text: error,
       to: adminEmail,
     });
