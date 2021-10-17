@@ -11,12 +11,22 @@ const seenUrls = [];
 const criterias = [
   {
     description: "General",
-    url: "https://www.imot.bg/779kqe",
+    url: "https://www.imot.bg/78lfo3",
     emails: [adminEmail],
   },
   {
     description: "Under 1100 euro/sqm",
-    url: "https://www.imot.bg/77bjz3",
+    url: "https://www.imot.bg/78lfq3",
+    emails: [adminEmail],
+  },
+  {
+    description: "Two rooms Under 1100 euro/sqm",
+    url: "https://www.imot.bg/78lfst",
+    emails: [adminEmail],
+  },
+  {
+    description: "Two rooms Under 1100 euro/sqm",
+    url: "https://www.imot.bg/78lfux",
     emails: [adminEmail],
   },
 ];
@@ -71,43 +81,45 @@ const getNewAds = async criteria => {
 
 let isInitialRun = true;
 
-const watchForChanges = () => {
-  const criteriaPromises = criterias.map(criteria =>
-    getNewAds(criteria).then(({ ads, description, emails }) => {
-      ads.forEach(({ url, preview, price, pic }) => {
-        if (!seenUrls.includes(url)) {
-          seenUrls.push(url);
+const watchForChanges = async () => {
+  try {
+    const criteriaPromises = criterias.map(
+      criteria => () =>
+        getNewAds(criteria).then(({ ads, description, emails }) => {
+          ads.forEach(({ url, preview, price, pic }) => {
+            if (!seenUrls.includes(url)) {
+              seenUrls.push(url);
 
-          !isInitialRun &&
-            emails.forEach(email => {
-              sendEmail({
-                subject: `${price} / ${description}`,
-                text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
-                to: email,
-              });
-            });
-        }
-      });
+              !isInitialRun &&
+                emails.forEach(email => {
+                  sendEmail({
+                    subject: `${price} / ${description}`,
+                    text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
+                    to: email,
+                  });
+                });
+            }
+          });
+          return criteria;
+        })
+    );
 
-      return criteria;
-    })
-  );
+    for (const index in criteriaPromises) {
+      await criteriaPromises[index]();
+    }
 
-  Promise.all(criteriaPromises)
-    .then(() => {
-      isInitialRun = false;
+    isInitialRun = false;
 
-      setTimeout(() => {
-        watchForChanges();
-      }, timeout);
-    })
-    .catch(error => {
-      sendEmail({
-        subject: `Stepbro, I'm stuck`,
-        text: error,
-        to: adminEmail,
-      });
+    setTimeout(() => {
+      watchForChanges();
+    }, timeout);
+  } catch (error) {
+    sendEmail({
+      subject: `Stepbro, I'm stuck`,
+      text: error,
+      to: adminEmail,
     });
+  }
 };
 
 watchForChanges();
