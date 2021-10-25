@@ -10,26 +10,20 @@ const timeout = 1000 * 60 * 3;
 const seenUrls = [];
 const criterias = [
   {
-    description: "General",
-    url: "https://www.imot.bg/78lfo3",
-    emails: [adminEmail],
-    hasCriteriaExpired: false,
-  },
-  {
-    description: "Under 1100 euro/sqm",
-    url: "https://www.imot.bg/78lfq3",
+    description: "General three rooms",
+    url: "https://www.imot.bg/79kmi8",
     emails: [adminEmail],
     hasCriteriaExpired: false,
   },
   {
     description: "General two rooms",
-    url: "https://www.imot.bg/78lfux",
+    url: "https://www.imot.bg/79kmm9",
     emails: [adminEmail],
     hasCriteriaExpired: false,
   },
   {
-    description: "Two rooms Under 1100 euro/sqm",
-    url: "https://www.imot.bg/78lfst",
+    description: "General under 1100 euro/sqm",
+    url: "https://www.imot.bg/79kmha",
     emails: [adminEmail],
     hasCriteriaExpired: false,
   },
@@ -110,7 +104,7 @@ const watchForChanges = async () => {
             criterias[criteriaIndex].hasCriteriaExpired = true;
 
             sendEmail({
-              subject: `Expired "${criteria}"`,
+              subject: `Expired!!!`,
               text: `Criteria expired: ${url}`,
               to: adminEmail,
             });
