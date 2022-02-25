@@ -1,30 +1,31 @@
-"use strict";
-
+/* eslint-disable implicit-arrow-linebreak */
 const puppeteer = require("puppeteer");
+const fs = require("fs");
 
 const sendEmail = require("./utils/sendEmail");
 
-const adminEmail = "mariyan_dimitrov@yahoo.com";
-
+const config = JSON.parse(fs.readFileSync("config.json", "utf8"));
+const { adminEmail, emailReceivers, ...auth } = config;
 const timeout = 1000 * 60 * 3;
+
 const seenUrls = [];
 const criterias = [
   {
     description: "General three rooms",
     url: "https://www.imot.bg/79kmi8",
-    emails: [adminEmail],
+    emails: emailReceivers,
     hasCriteriaExpired: false,
   },
   {
     description: "General two rooms",
     url: "https://www.imot.bg/79kmm9",
-    emails: [adminEmail],
+    emails: emailReceivers,
     hasCriteriaExpired: false,
   },
   {
     description: "General under 1100 euro/sqm",
     url: "https://www.imot.bg/79kmha",
-    emails: [adminEmail],
+    emails: emailReceivers,
     hasCriteriaExpired: false,
   },
 ];
@@ -41,6 +42,7 @@ const getNewAds = async criteria => {
 
   const allAds = await page.evaluate(() => {
     const links = [
+      // eslint-disable-next-line no-undef
       ...document.querySelectorAll(
         "body > div:nth-child(1) > table:nth-child(4) > tbody > tr:nth-child(1) > td:nth-child(1) > table"
       ),
@@ -72,9 +74,9 @@ const getNewAds = async criteria => {
 
   await browser.close();
 
-  const ads = allAds.filter(ad => ad);
+  const ads = allAds.filter(Boolean);
 
-  return { ...criteria, ads };
+  return ads;
 };
 
 let isInitialRun = true;
@@ -83,29 +85,36 @@ const watchForChanges = async () => {
   try {
     const criteriaPromises = criterias.map(
       criteria => () =>
-        getNewAds(criteria).then(({ ads, description, url, emails, hasCriteriaExpired }) => {
+        getNewAds(criteria).then(ads => {
+          const { description, url, emails, hasCriteriaExpired } = criteria;
+
           if (ads.length) {
-            ads.forEach(({ url, preview, price, pic }) => {
+            ads.forEach(ad => {
               if (!seenUrls.includes(url)) {
                 seenUrls.push(url);
 
                 !isInitialRun &&
                   emails.forEach(email => {
                     sendEmail({
-                      subject: `${price} / ${description}`,
-                      text: `${preview}\n${pic}\n\n ---------------------------- \n ${url}`,
+                      subject: `${ad.price} / ${description}`,
+                      text: `${ad.preview}\n${ad.pic}\n\n ---------------------------- \n ${url}`,
+                      auth,
                       to: email,
                     });
                   });
               }
             });
           } else if (!hasCriteriaExpired) {
-            const criteriaIndex = criterias.findIndex(criteria => criteria.url === url);
+            const criteriaIndex = criterias.findIndex(
+              currentCriteria => currentCriteria.url === url
+            );
+
             criterias[criteriaIndex].hasCriteriaExpired = true;
 
             sendEmail({
-              subject: `Expired!!!`,
+              subject: "Expired!!!",
               text: `Criteria expired: ${url}`,
+              auth,
               to: adminEmail,
             });
           }
@@ -127,10 +136,10 @@ const watchForChanges = async () => {
     sendEmail({
       subject: "Crawler error",
       text: error,
+      auth,
       to: adminEmail,
     });
   }
 };
 
 watchForChanges();
-console.log("here");
